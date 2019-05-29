@@ -31,14 +31,14 @@ def get_labels(file_name: str):
             raise ValueError("Unknown Magic Number: {}".format(magic_number))
 
 
-def save_images(images, base_dir: str, base_name: str = "img_"):
+def save_images(images, base_dir: str, base_name="img_"):
     num_digits = len(str(len(images)))
     save_params = [cv2.IMWRITE_PNG_COMPRESSION, 0]
     for n, i in enumerate(images):
         cv2.imwrite("{}{}{}.png".format(base_dir, base_name, str(n).zfill(num_digits)), i, save_params)
 
 
-def read_images(base_dir: str, base_name: str = "img_", read_limit: int = -1):
+def read_images(base_dir: str, base_name="img_", read_limit: int = -1):
     p_list = Path(base_dir).glob('**/{}*.png'.format(base_name))
     p_list = sorted(p_list, key=lambda p: str(p))
     if read_limit <= -1:

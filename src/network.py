@@ -10,12 +10,14 @@ def sigmoid(x):
 
 def sigmoid_prime(x):
     s = sigmoid(x)
-    return s * (1-s)
+    return s * (1-s)  # derivative of sigmoid
 
 
 class Network:
 
-    def __init__(self, layer_sizes = [784, 28, 20, 10]):
+    def __init__(self, layer_sizes=None):
+        if layer_sizes is None:
+            layer_sizes = [784, 28, 20, 10]
         # create arrays to hold weights and biases
         self.w = [np.empty([layer_sizes[i-1], layer_sizes[i]]) for i in range(1, len(layer_sizes))]
         self.b = [np.empty(layer_sizes[i]) for i in range(1, len(layer_sizes))]
@@ -25,8 +27,8 @@ class Network:
             self.w[n] = np.random.rand(len(w), len(w[0]))
             self.b[n] = np.random.rand(len(b))
 
-    def save_parameters(self, file_name: str = "/home/dp/PycharmProjects/MNIST_Classification_Network/data/params.byte"):
-        with open(file_name, 'wb') as f:
+    def save_parameters(self, base_dir: str, file_name="params.byte"):
+        with open(base_dir + file_name, 'wb') as f:
             for w, b in zip(self.w, self.b):
                 temp = w.dumps()
                 f.write(len(temp).to_bytes(4, byteorder="big"))
@@ -35,8 +37,8 @@ class Network:
                 f.write(len(temp).to_bytes(4, byteorder="big"))
                 f.write(b.dumps())
 
-    def read_parameters(self, file_name: str = "/home/dp/PycharmProjects/MNIST_Classification_Network/data/params.byte"):
-        with open(file_name, 'rb') as f:
+    def read_parameters(self, base_dir: str, file_name="params.byte"):
+        with open(base_dir + file_name, 'rb') as f:
             for i in range(len(self.w)):
                 temp = int.from_bytes(f.read(4), byteorder="big")
                 self.w[i] = pickle.loads(f.read(temp))
@@ -77,15 +79,15 @@ class Network:
 
             # compute gradient with respect to weights
             for k, a_k in enumerate(a[l-1]):
-                for i, (dc_da_i, z_i) in enumerate(zip(dc_da[l], z[l])):
-                    g_w[l-1][k][i] = dc_da_i * sigmoid_prime(z_i) * a_k
+                for i, (g_b_i) in enumerate(g_b[l-1]):
+                    g_w[l-1][k][i] = g_b_i * a_k
 
             # compute gradient with respect to activations of previous layers - needed for next iteration
             for k in range(len(dc_da[l-1])):
                 # must sum of overall connected activations in current layer
                 dc_da[l-1][k] = 0
-                for dc_da_i, z_i, w_ki in zip(dc_da[l], z[l], self.w[l-1][k]):
-                    dc_da[l-1][k] += dc_da_i * sigmoid_prime(z_i) * w_ki
+                for dc_da_i, g_b_i, w_ki in zip(dc_da[l], g_b[l-1], self.w[l-1][k]):
+                    dc_da[l-1][k] += g_b_i * w_ki
 
         # change weights and biases in direction of negative gradient
         for w, b, g_w, g_b in zip(self.w, self.b, g_w, g_b):
@@ -110,7 +112,7 @@ class Network:
         output /= 255  # normalize pixel values
 
         for w, b in zip(self.w, self.b):
-            output = np.add(np.matmul(output, w), b)
+            output = np.add(np.matmul(output, w), b)  # compute weighted sum
             for i, o in enumerate(output):
                 output[i] = sigmoid(o)  # apply sigmoid function
 

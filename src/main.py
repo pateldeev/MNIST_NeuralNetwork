@@ -13,9 +13,9 @@ train_labels = dl.get_labels("/home/dp/PycharmProjects/MNIST_Classification_Netw
 net = network.Network()
 
 # net.randomize_parameters()
-# net.save_parameters()
+# net.save_parameters("/home/dp/PycharmProjects/MNIST_Classification_Network/data/")
 
-net.read_parameters()
+net.read_parameters("/home/dp/PycharmProjects/MNIST_Classification_Network/data/")
 
 print(net.compute_output(train_data[0]))
 
