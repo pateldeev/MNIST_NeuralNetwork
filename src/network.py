@@ -45,65 +45,61 @@ class Network:
                 temp = int.from_bytes(f.read(4), byteorder="big")
                 self.b[i] = pickle.loads(f.read(temp))
 
-    def back_prop(self, img, expected_output: int):
-        y = [1 if i == expected_output else 0 for i in range(10)]
+    def back_prop(self, images, expected_predictions):
+        assert len(images) == len(expected_predictions)
 
-        # compute activation (a) of each layer (z --> before sigmoid application to a)
-        z = [np.ndarray.astype(np.ndarray.flatten(img), dtype=float)]
-        z[-1] /= 255
-        a = z.copy()  # no need to apply sigmoid before first layer
-        for w, b in zip(self.w, self.b):
-            z.append(np.add(np.matmul(a[-1], w), b))  # compute weighted sum from previous layer
-            a.append(np.array([sigmoid(z_q) for z_q in z[-1]]))  # activation value after applying sigmoid
-
-        # compute cost (sum of squares)
-        c_0 = sum([(a_i - y_i) ** 2 for a_i, y_i in zip(a[-1], y)])
         print("||||||||||||||||||||||||||||")
-        print("Output: ", a[-1])
-        print("Cost: ", c_0)
+        print("Cost @ Start: ", self.compute_cost(images, expected_predictions))
 
-        # allocate space to hold gradient - represent optimal change
-        g_w, g_b = [np.empty_like(w) for w in self.w], [np.empty_like(b) for b in self.b]
+        for img, expected_prediction in zip(images, expected_predictions):
+            y = [1 if i == expected_prediction else 0 for i in range(10)]
 
-        # allocate space to hold partial derivatives of cost with respect to all activation values
-        dc_da = [np.empty_like(a_l) for a_l in a]
+            # compute activation (a) of each layer (z --> before sigmoid application to a)
+            z = [np.ndarray.astype(np.ndarray.flatten(img), dtype=float) / 255]
+            a = z.copy()  # no need to apply sigmoid before first layer
+            for w, b in zip(self.w, self.b):
+                z.append(np.add(np.matmul(a[-1], w), b))  # compute weighted sum from previous layer
+                a.append(np.array([sigmoid(z_q) for z_q in z[-1]]))  # activation value after applying sigmoid
 
-        # compute partial derivatives of cost with respect to activation values in final layer
-        dc_da[-1] = [2 * (a_i - y_i) for a_i, y_i in zip(a[-1], y)]
+            # allocate space to hold gradient - represent optimal change
+            g_w, g_b = [np.empty_like(w) for w in self.w], [np.empty_like(b) for b in self.b]
 
-        # compute the gradient via back-propagation through layers
-        for l in range(len(a) - 1, 0, -1):
-            # compute gradient with respect to biases
-            for i, (dc_da_i, z_i) in enumerate(zip(dc_da[l], z[l])):
-                g_b[l-1][i] = dc_da_i * sigmoid_prime(z_i)
+            # allocate space to hold partial derivatives of cost with respect to all activation values
+            dc_da = [np.empty_like(a_l) for a_l in a]
 
-            # compute gradient with respect to weights
-            for k, a_k in enumerate(a[l-1]):
-                for i, (g_b_i) in enumerate(g_b[l-1]):
-                    g_w[l-1][k][i] = g_b_i * a_k
+            # compute partial derivatives of cost with respect to activation values in final layer
+            dc_da[-1] = [2 * (a_i - y_i) for a_i, y_i in zip(a[-1], y)]
 
-            # compute gradient with respect to activations of previous layers - needed for next iteration
-            for k in range(len(dc_da[l-1])):
-                # must sum of overall connected activations in current layer
-                dc_da[l-1][k] = 0
-                for dc_da_i, g_b_i, w_ki in zip(dc_da[l], g_b[l-1], self.w[l-1][k]):
-                    dc_da[l-1][k] += g_b_i * w_ki
+            # compute the gradient via back-propagation through layers
+            for l in range(len(a) - 1, 0, -1):
+                # compute gradient with respect to biases
+                for i, (dc_da_i, z_i) in enumerate(zip(dc_da[l], z[l])):
+                    g_b[l - 1][i] = dc_da_i * sigmoid_prime(z_i)
 
-        # change weights and biases in direction of negative gradient
-        for w, b, g_w, g_b in zip(self.w, self.b, g_w, g_b):
-            # change biases
-            for i, g_b_i in enumerate(g_b):
-                b[i] -= g_b_i
+                # compute gradient with respect to weights
+                for k, a_k in enumerate(a[l - 1]):
+                    for i, (g_b_i) in enumerate(g_b[l - 1]):
+                        g_w[l - 1][k][i] = g_b_i * a_k
 
-            # change weights
-            for r, g_w_r in enumerate(g_w):
-                for c, g_w_rc in enumerate(g_w_r):
-                    w[r][c] -= g_w_rc
+                # compute gradient with respect to activations of previous layers - needed for next iteration
+                for k in range(len(dc_da[l - 1])):
+                    # must sum of overall connected activations in current layer
+                    dc_da[l - 1][k] = 0
+                    for dc_da_i, g_b_i, w_ki in zip(dc_da[l], g_b[l - 1], self.w[l - 1][k]):
+                        dc_da[l - 1][k] += g_b_i * w_ki
 
-        out_new = self.compute_output(img)
-        c_0_new = sum([(a_i - y_i) ** 2 for a_i, y_i in zip(out_new, y)])
-        print("New Output: ", out_new)
-        print("New Cost: ", c_0_new)
+            # change weights and biases in direction of negative gradient
+            for w, b, g_w, g_b in zip(self.w, self.b, g_w, g_b):
+                # change biases
+                for i, g_b_i in enumerate(g_b):
+                    b[i] -= g_b_i / len(images)
+
+                # change weights
+                for r, g_w_r in enumerate(g_w):
+                    for c, g_w_rc in enumerate(g_w_r):
+                        w[r][c] -= g_w_rc / len(images)
+
+        print("Cost @ End: ", self.compute_cost(images, expected_predictions))
 
     def compute_output(self, img):
         assert len(img) == len(img[0]) == 28
@@ -117,3 +113,14 @@ class Network:
                 output[i] = sigmoid(o)  # apply sigmoid function
 
         return output
+
+    def compute_prediction(self, img):
+        return max(self.compute_output(img))
+
+    def compute_cost(self, images, expected_predictions):
+        assert len(images) == len(expected_predictions)
+
+        y = [[1 if i == p else 0 for i in range(10)] for p in expected_predictions]
+        a = [self.compute_output(img) for img in images]
+        # compute cost (sum of squares) averaged over all images
+        return sum([sum([(a_i - y_i) ** 2 for a_i, y_i in zip(a_n, y_n)]) for a_n, y_n in zip(a, y)]) / len(images)

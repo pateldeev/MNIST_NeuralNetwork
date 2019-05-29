@@ -17,7 +17,7 @@ net = network.Network()
 
 net.read_parameters("/home/dp/PycharmProjects/MNIST_Classification_Network/data/")
 
-print(net.compute_output(train_data[0]))
+# print(net.compute_output(train_data[0]))
 
 for _ in range(10):
-    net.back_prop(train_data[0], train_labels[0])
+    net.back_prop(train_data[0:3], train_labels[0:3])
